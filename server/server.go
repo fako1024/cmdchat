@@ -1,12 +1,14 @@
 package main
 
 import (
-	"github.com/fako1024/cmdchat"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/olahol/melody.v1"
 )
+
+// defaultMaxMessageSize denotes the default maximum size allowed for transmission (32 MiB)
+const defaultMaxMessageSize = 30 << 20
 
 func main() {
 
@@ -20,7 +22,7 @@ func main() {
 	m := melody.New()
 
 	// Ensure a sufficient message size even for large command output
-	m.Config.MaxMessageSize = cmdchat.DefaultMaxMessageSize
+	m.Config.MaxMessageSize = defaultMaxMessageSize
 
 	// Prepare session store
 	sessions := make(map[string]string)
