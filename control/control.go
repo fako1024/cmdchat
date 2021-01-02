@@ -20,12 +20,14 @@ func main() {
 
 	// Fetch flags
 	var (
-		server string
-		host   string
-		debug  bool
+		server  string
+		host    string
+		keyPath string
+		debug   bool
 	)
 	flag.StringVar(&server, "server", "127.0.0.1:5000", "Server to connect to")
 	flag.StringVar(&host, "host", "", "Host to send commands to")
+	flag.StringVar(&keyPath, "key", "", "Path to key file used for AEAD encryption / authentication")
 	flag.BoolVar(&debug, "debug", false, "Debug mode (more verbose logging)")
 	flag.Parse()
 
@@ -37,7 +39,7 @@ func main() {
 	uri := "ws://" + server + "/control/" + id.String() + "/" + host + "/ws"
 
 	// Instantiate a new Hub
-	hub, err := cmdchat.New(uri)
+	hub, err := cmdchat.New(uri, keyPath)
 	if err != nil {
 		log.Fatalf("Failed to establish WebSocket connection: %s", err)
 	}
@@ -59,20 +61,15 @@ func main() {
 		}
 
 		// Send the command to the client
-		hub.WriteChan <- cmdchat.EncodeMessage(text)
+		hub.WriteChan <- text
 		log.Debugf("Sent command: %s", text)
 
 		// Retrieve and print the response
-		respData, ok := <-hub.ReadChan
+		resp, ok := <-hub.ReadChan
 		if !ok {
 			log.Fatalf("Failed to read command response from channel")
 		}
 
-		resp, err := cmdchat.DecodeMessage(respData)
-		if err != nil {
-			log.Errorf("error decoding response: %s", err)
-			continue
-		}
 		fmt.Printf("%s", resp)
 	}
 }

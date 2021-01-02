@@ -1,10 +1,17 @@
 package cmdchat
 
 import (
+	"os"
+	"strings"
 	"time"
 
+	"github.com/google/tink/go/aead"
+	"github.com/google/tink/go/insecurecleartextkeyset"
+	"github.com/google/tink/go/keyset"
+	"github.com/google/tink/go/tink"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	"github.com/valyala/gozstd"
 )
 
 // Hub denotes a connection hub / WebSocket interface
@@ -12,12 +19,14 @@ type Hub struct {
 	ws  *websocket.Conn
 	log *logrus.Logger
 
-	ReadChan  chan []byte
-	WriteChan chan []byte
+	aead tink.AEAD
+
+	ReadChan  chan string
+	WriteChan chan string
 }
 
 // New initializes a new hub
-func New(uri string) (*Hub, error) {
+func New(uri, keyPath string) (*Hub, error) {
 
 	// Connect to server
 	ws, _, err := websocket.DefaultDialer.Dial(uri, nil)
@@ -29,8 +38,12 @@ func New(uri string) (*Hub, error) {
 	obj := &Hub{
 		ws:        ws,
 		log:       logrus.StandardLogger(),
-		ReadChan:  make(chan []byte),
-		WriteChan: make(chan []byte),
+		ReadChan:  make(chan string),
+		WriteChan: make(chan string),
+	}
+
+	if err := obj.instantiateAEAD(keyPath); err != nil {
+		return nil, err
 	}
 
 	// Start listening / channel handling
@@ -65,12 +78,18 @@ func (h *Hub) Read() {
 	h.log.Debugf("Waiting for messages to read from WebSocket ...")
 
 	for {
-		_, message, err := h.ws.ReadMessage()
+		_, encodedMessage, err := h.ws.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				h.log.Errorf("Error reading from WebSocket: %s", err)
 			}
 			break
+		}
+
+		message, err := h.decodeMessage(encodedMessage)
+		if err != nil {
+			h.log.Errorf("Error decoding message: %s", err)
+			continue
 		}
 
 		h.ReadChan <- message
@@ -108,13 +127,20 @@ func (h *Hub) Write() {
 				return
 			}
 
+			encodedMessage, err := h.encodeMessage(message)
+			if err != nil {
+				log.Errorf("Error encoding message: %s", err)
+				close(h.WriteChan)
+				return
+			}
+
 			w, err := h.ws.NextWriter(websocket.TextMessage)
 			if err != nil {
 				log.Errorf("Error obtaining WebSocket writer: %s", err)
 				close(h.WriteChan)
 				return
 			}
-			if _, err = w.Write(message); err != nil {
+			if _, err = w.Write(encodedMessage); err != nil {
 				log.Errorf("Error writing to WebSocket: %s", err)
 				close(h.WriteChan)
 				return
@@ -138,4 +164,65 @@ func (h *Hub) Write() {
 			}
 		}
 	}
+}
+
+// EncodeMessage encodes a message
+func (h *Hub) encodeMessage(msg string) ([]byte, error) {
+
+	if !strings.HasSuffix(msg, "\n") {
+		msg += "\n"
+	}
+
+	var buf []byte
+	buf = gozstd.Compress(buf[:0], []byte(strings.ToValidUTF8(msg, "")))
+
+	ct, err := h.aead.Encrypt(buf, nil)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return ct, nil
+}
+
+// DecodeMessage decodes a message
+func (h *Hub) decodeMessage(data []byte) (string, error) {
+
+	pt, err := h.aead.Decrypt(data, nil)
+	if err != nil {
+		return "", err
+	}
+
+	var (
+		buf []byte
+	)
+	buf, err = gozstd.Decompress(buf[:0], pt)
+	if err != nil {
+		return "", err
+	}
+
+	return string(buf), nil
+}
+
+func (h *Hub) instantiateAEAD(keyPath string) error {
+
+	// Attempt to open key file
+	keyfile, err := os.OpenFile(keyPath, os.O_RDONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer keyfile.Close()
+
+	// Read AEAD key from file and instantiate handler
+	kh, err := insecurecleartextkeyset.Read(keyset.NewBinaryReader(keyfile))
+	if err != nil {
+		return err
+	}
+
+	// Instantiate new AEAD instance
+	h.aead, err = aead.New(kh)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
