@@ -57,27 +57,34 @@ func connectAndListen(server, host string, log *logrus.Logger, nConns int) error
 
 	// In case the connection was re-restablished, notify potential controllers
 	if nConns > 0 {
-		hub.WriteChan <- cmdchat.SanitizeMessage("Connection reset")
+		hub.WriteChan <- cmdchat.EncodeMessage("Connection reset")
 	}
 
 	// Continuously receive commands
 	for {
-		msg, ok := <-hub.ReadChan
+		msgData, ok := <-hub.ReadChan
 		if !ok {
 			close(hub.WriteChan)
 			return fmt.Errorf("cannot read command from cannel")
+		}
+
+		msg, err := cmdchat.DecodeMessage(msgData)
+		if err != nil {
+			log.Errorf("error decoding command: %s", err)
+			hub.WriteChan <- cmdchat.EncodeMessage(err.Error())
+			continue
 		}
 
 		// Parse fields from command and run
 		resp, err := runShellCmd(string(msg))
 		if err != nil {
 			log.Errorf("error executing shell command (%s): %s", err, resp)
-			hub.WriteChan <- cmdchat.SanitizeMessage(err.Error() + " " + resp)
+			hub.WriteChan <- cmdchat.EncodeMessage(err.Error() + " " + resp)
 			continue
 		}
 
 		log.Debugf("Executed: %s - response: %s", msg, resp)
-		hub.WriteChan <- cmdchat.SanitizeMessage(resp)
+		hub.WriteChan <- cmdchat.EncodeMessage(resp)
 		log.Debugf("Sent response: %s", resp)
 	}
 }

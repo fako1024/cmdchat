@@ -59,13 +59,19 @@ func main() {
 		}
 
 		// Send the command to the client
-		hub.WriteChan <- cmdchat.SanitizeMessage(text)
+		hub.WriteChan <- cmdchat.EncodeMessage(text)
 		log.Debugf("Sent command: %s", text)
 
 		// Retrieve and print the response
-		resp, ok := <-hub.ReadChan
+		respData, ok := <-hub.ReadChan
 		if !ok {
 			log.Fatalf("Failed to read command response from channel")
+		}
+
+		resp, err := cmdchat.DecodeMessage(respData)
+		if err != nil {
+			log.Errorf("error decoding response: %s", err)
+			continue
 		}
 		fmt.Printf("%s", resp)
 	}

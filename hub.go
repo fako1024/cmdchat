@@ -1,7 +1,6 @@
 package cmdchat
 
 import (
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -139,15 +138,4 @@ func (h *Hub) Write() {
 			}
 		}
 	}
-}
-
-// SanitizeMessage ensure UTF-8 compatibility and terminates output with a
-// newline
-func SanitizeMessage(msg string) []byte {
-
-	if !strings.HasSuffix(msg, "\n") {
-		msg += "\n"
-	}
-
-	return []byte(strings.ToValidUTF8(msg, ""))
 }
