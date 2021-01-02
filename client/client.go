@@ -55,7 +55,7 @@ func connectAndListen(server, host, keyPath string, log *logrus.Logger, nConns i
 	uri := "ws://" + server + "/client/" + host + "/ws"
 
 	// Instantiate a new Hub
-	hub, err := cmdchat.New(uri, keyPath)
+	hub, err := cmdchat.New(uri, keyPath, true)
 	if err != nil {
 		return fmt.Errorf("failed to establish WebSocket connection: %s", err)
 	}

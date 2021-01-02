@@ -26,7 +26,7 @@ type Hub struct {
 }
 
 // New initializes a new hub
-func New(uri, keyPath string) (*Hub, error) {
+func New(uri, keyPath string, generateIfNotExists bool) (*Hub, error) {
 
 	// Connect to server
 	ws, _, err := websocket.DefaultDialer.Dial(uri, nil)
@@ -42,7 +42,7 @@ func New(uri, keyPath string) (*Hub, error) {
 		WriteChan: make(chan string),
 	}
 
-	if err := obj.instantiateAEAD(keyPath); err != nil {
+	if err := obj.instantiateAEAD(keyPath, generateIfNotExists); err != nil {
 		return nil, err
 	}
 
@@ -203,19 +203,32 @@ func (h *Hub) decodeMessage(data []byte) (string, error) {
 	return string(buf), nil
 }
 
-func (h *Hub) instantiateAEAD(keyPath string) error {
+func (h *Hub) instantiateAEAD(keyPath string, generateIfNotExists bool) error {
+
+	var kh *keyset.Handle
 
 	// Attempt to open key file
 	keyfile, err := os.OpenFile(keyPath, os.O_RDONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer keyfile.Close()
+	if err == nil {
+		defer keyfile.Close()
 
-	// Read AEAD key from file and instantiate handler
-	kh, err := insecurecleartextkeyset.Read(keyset.NewBinaryReader(keyfile))
-	if err != nil {
-		return err
+		// Read AEAD key from file and instantiate handler
+		kh, err = insecurecleartextkeyset.Read(keyset.NewBinaryReader(keyfile))
+		if err != nil {
+			return err
+		}
+	} else {
+
+		// If it doesn't exist and generation was requested, create a new key file
+		if os.IsNotExist(err) && generateIfNotExists {
+			h.log.Infof("Key file %s does not exist, generating as requested ...", keyPath)
+
+			if kh, err = h.generateKey(keyPath); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 
 	// Instantiate new AEAD instance
@@ -225,4 +238,20 @@ func (h *Hub) instantiateAEAD(keyPath string) error {
 	}
 
 	return nil
+}
+
+func (h *Hub) generateKey(keyPath string) (*keyset.Handle, error) {
+
+	keyfile, err := os.OpenFile(keyPath, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return nil, err
+	}
+	defer keyfile.Close()
+
+	kh, err := keyset.NewHandle(aead.AES256GCMKeyTemplate())
+	if err != nil {
+		return nil, err
+	}
+
+	return kh, insecurecleartextkeyset.Write(kh, keyset.NewBinaryWriter(keyfile))
 }

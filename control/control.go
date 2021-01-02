@@ -39,7 +39,7 @@ func main() {
 	uri := "ws://" + server + "/control/" + id.String() + "/" + host + "/ws"
 
 	// Instantiate a new Hub
-	hub, err := cmdchat.New(uri, keyPath)
+	hub, err := cmdchat.New(uri, keyPath, false)
 	if err != nil {
 		log.Fatalf("Failed to establish WebSocket connection: %s", err)
 	}
