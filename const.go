@@ -1,6 +1,10 @@
 package cmdchat
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/tink/go/aead"
+)
 
 const (
 
@@ -15,4 +19,10 @@ const (
 
 	// DefaultKeepAliveDeadline denotes the default deadline for keepalive pings
 	DefaultKeepAliveDeadline = 60 * time.Second
+)
+
+var (
+
+	// DefaultAEADChipherTemplate denotes the default exnryption cipher template used for AEAD
+	DefaultAEADChipherTemplate = aead.XChaCha20Poly1305KeyTemplate
 )

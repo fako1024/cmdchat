@@ -248,7 +248,7 @@ func (h *Hub) generateKey(keyPath string) (*keyset.Handle, error) {
 	}
 	defer keyfile.Close()
 
-	kh, err := keyset.NewHandle(aead.AES256GCMKeyTemplate())
+	kh, err := keyset.NewHandle(DefaultAEADChipherTemplate())
 	if err != nil {
 		return nil, err
 	}
