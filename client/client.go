@@ -9,7 +9,6 @@ import (
 
 	"github.com/fako1024/cmdchat"
 	"github.com/google/shlex"
-	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 )
 
@@ -48,27 +47,24 @@ func connectAndListen(server, host string, log *logrus.Logger, nConns int) error
 
 	uri := "ws://" + server + "/client/" + host + "/ws"
 
-	// Connect to server
-	ws, _, err := websocket.DefaultDialer.Dial(uri, nil)
+	// Instantiate a new Hub
+	hub, err := cmdchat.New(uri)
 	if err != nil {
 		return fmt.Errorf("failed to establish WebSocket connection: %s", err)
 	}
-	defer ws.Close()
+	defer hub.Close()
 	log.Infof("Connected client to websocket at %s", uri)
-
-	// Initialize channels for reading / writing
-	readChan, writeChan := cmdchat.InitReadWriteChannels(ws)
 
 	// In case the connection was re-restablished, notify potential controllers
 	if nConns > 0 {
-		writeChan <- cmdchat.SanitizeMessage("Connection reset")
+		hub.WriteChan <- cmdchat.SanitizeMessage("Connection reset")
 	}
 
 	// Continuously receive commands
 	for {
-		msg, ok := <-readChan
+		msg, ok := <-hub.ReadChan
 		if !ok {
-			close(writeChan)
+			close(hub.WriteChan)
 			return fmt.Errorf("cannot read command from cannel")
 		}
 
@@ -76,12 +72,12 @@ func connectAndListen(server, host string, log *logrus.Logger, nConns int) error
 		resp, err := runShellCmd(string(msg))
 		if err != nil {
 			log.Errorf("error executing shell command (%s): %s", err, resp)
-			writeChan <- cmdchat.SanitizeMessage(err.Error() + " " + resp)
+			hub.WriteChan <- cmdchat.SanitizeMessage(err.Error() + " " + resp)
 			continue
 		}
 
 		log.Debugf("Executed: %s - response: %s", msg, resp)
-		writeChan <- cmdchat.SanitizeMessage(resp)
+		hub.WriteChan <- cmdchat.SanitizeMessage(resp)
 		log.Debugf("Sent response: %s", resp)
 	}
 }

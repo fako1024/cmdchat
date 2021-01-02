@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/fako1024/cmdchat"
-	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -37,15 +36,13 @@ func main() {
 	id := uuid.NewV4()
 	uri := "ws://" + server + "/control/" + id.String() + "/" + host + "/ws"
 
-	// Connect to server
-	ws, _, err := websocket.DefaultDialer.Dial(uri, nil)
+	// Instantiate a new Hub
+	hub, err := cmdchat.New(uri)
 	if err != nil {
 		log.Fatalf("Failed to establish WebSocket connection: %s", err)
 	}
-	defer ws.Close()
+	defer hub.Close()
 	log.Infof("Connected controller to websocket at %s", uri)
-
-	readChan, writeChan := cmdchat.InitReadWriteChannels(ws)
 
 	// Continuously read commands from STDIN
 	reader := bufio.NewReader(os.Stdin)
@@ -62,11 +59,11 @@ func main() {
 		}
 
 		// Send the command to the client
-		writeChan <- cmdchat.SanitizeMessage(text)
+		hub.WriteChan <- cmdchat.SanitizeMessage(text)
 		log.Debugf("Sent command: %s", text)
 
 		// Retrieve and print the response
-		resp, ok := <-readChan
+		resp, ok := <-hub.ReadChan
 		if !ok {
 			log.Fatalf("Failed to read command response from channel")
 		}
