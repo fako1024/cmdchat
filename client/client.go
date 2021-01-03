@@ -24,7 +24,7 @@ func main() {
 		keyPath string
 		debug   bool
 	)
-	flag.StringVar(&server, "server", "127.0.0.1:5000", "Server to connect to")
+	flag.StringVar(&server, "server", "ws://127.0.0.1:5000", "Server to connect to")
 	flag.StringVar(&host, "host", "", "Host to send commands to")
 	flag.StringVar(&keyPath, "key", "", "Path to key file used for AEAD encryption / authentication")
 	flag.BoolVar(&debug, "debug", false, "Debug mode (more verbose logging)")
@@ -52,7 +52,7 @@ func main() {
 
 func connectAndListen(server, host, keyPath string, log *logrus.Logger, nConns int) error {
 
-	uri := "ws://" + server + "/client/" + host + "/ws"
+	uri := server + "/client/" + host + "/ws"
 
 	// Instantiate a new Hub
 	hub, err := cmdchat.New(uri, keyPath, true)

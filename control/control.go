@@ -25,7 +25,7 @@ func main() {
 		keyPath string
 		debug   bool
 	)
-	flag.StringVar(&server, "server", "127.0.0.1:5000", "Server to connect to")
+	flag.StringVar(&server, "server", "ws://127.0.0.1:5000", "Server to connect to")
 	flag.StringVar(&host, "host", "", "Host to send commands to")
 	flag.StringVar(&keyPath, "key", "", "Path to key file used for AEAD encryption / authentication")
 	flag.BoolVar(&debug, "debug", false, "Debug mode (more verbose logging)")
@@ -36,7 +36,7 @@ func main() {
 	}
 
 	id := uuid.NewV4()
-	uri := "ws://" + server + "/control/" + id.String() + "/" + host + "/ws"
+	uri := server + "/control/" + id.String() + "/" + host + "/ws"
 
 	// Instantiate a new Hub
 	hub, err := cmdchat.New(uri, keyPath, false)

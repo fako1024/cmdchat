@@ -10,8 +10,8 @@ import (
 	"github.com/google/tink/go/keyset"
 	"github.com/google/tink/go/tink"
 	"github.com/gorilla/websocket"
+	"github.com/klauspost/compress/zstd"
 	"github.com/sirupsen/logrus"
-	"github.com/valyala/gozstd"
 )
 
 // Hub denotes a connection hub / WebSocket interface
@@ -19,7 +19,9 @@ type Hub struct {
 	ws  *websocket.Conn
 	log *logrus.Logger
 
-	aead tink.AEAD
+	aead    tink.AEAD
+	encoder *zstd.Encoder
+	decoder *zstd.Decoder
 
 	ReadChan  chan string
 	WriteChan chan string
@@ -43,6 +45,14 @@ func New(uri, keyPath string, generateIfNotExists bool) (*Hub, error) {
 	}
 
 	if err := obj.instantiateAEAD(keyPath, generateIfNotExists); err != nil {
+		return nil, err
+	}
+
+	// Instantiate new zstd compressor / decompressor
+	if obj.encoder, err = zstd.NewWriter(nil); err != nil {
+		return nil, err
+	}
+	if obj.decoder, err = zstd.NewReader(nil); err != nil {
 		return nil, err
 	}
 
@@ -174,7 +184,7 @@ func (h *Hub) encodeMessage(msg string) ([]byte, error) {
 	}
 
 	var buf []byte
-	buf = gozstd.Compress(buf[:0], []byte(strings.ToValidUTF8(msg, "")))
+	buf = h.encoder.EncodeAll([]byte(strings.ToValidUTF8(msg, "")), buf[:0])
 
 	ct, err := h.aead.Encrypt(buf, nil)
 	if err != nil {
@@ -195,7 +205,8 @@ func (h *Hub) decodeMessage(data []byte) (string, error) {
 	var (
 		buf []byte
 	)
-	buf, err = gozstd.Decompress(buf[:0], pt)
+
+	buf, err = h.decoder.DecodeAll(pt, buf[:0])
 	if err != nil {
 		return "", err
 	}
