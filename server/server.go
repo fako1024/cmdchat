@@ -17,6 +17,7 @@ func main() {
 
 	// Define echo + melody frameworks
 	e := echo.New()
+	e.Use(CORS())
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	m := melody.New()
