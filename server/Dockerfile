@@ -3,7 +3,7 @@ FROM golang:1.15-alpine
 RUN apk add git
 
 WORKDIR /go/src/github.com/fako1024/cmdchat/server
-COPY server.go .
+COPY *.go ./
 
 RUN go get -d -v ./...
 RUN CGO_ENABLED=0 GOOS=linux go build -a -o cmdchat-server .
