@@ -1,6 +1,7 @@
 package cmdchat
 
 import (
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -28,10 +29,15 @@ type Hub struct {
 }
 
 // New initializes a new hub
-func New(uri, keyPath string, generateIfNotExists bool) (*Hub, error) {
+func New(uri, keyPath, authHeader string, generateIfNotExists bool) (*Hub, error) {
+
+	httpHeader := http.Header{}
+	if authHeader != "" {
+		httpHeader["Authorization"] = []string{"Basic " + authHeader}
+	}
 
 	// Connect to server
-	ws, _, err := websocket.DefaultDialer.Dial(uri, nil)
+	ws, _, err := websocket.DefaultDialer.Dial(uri, httpHeader)
 	if err != nil {
 		return nil, err
 	}

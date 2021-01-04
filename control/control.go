@@ -20,11 +20,13 @@ func main() {
 
 	// Fetch flags
 	var (
+		user    string
 		server  string
 		host    string
 		keyPath string
 		debug   bool
 	)
+	flag.StringVar(&user, "user", "", "User (controller) for connection to server (Basic Auth)")
 	flag.StringVar(&server, "server", "ws://127.0.0.1:5000", "Server to connect to")
 	flag.StringVar(&host, "host", "", "Host to send commands to")
 	flag.StringVar(&keyPath, "key", "", "Path to key file used for AEAD encryption / authentication")
@@ -35,11 +37,17 @@ func main() {
 		log.Level = logrus.DebugLevel
 	}
 
+	// Check for authentication password (if a user was provided) and generate authentication header
+	authHeader, err := prepareAuthHeader(user)
+	if err != nil {
+		log.Fatalf("Failed to read user password: %s", err)
+	}
+
 	id := uuid.NewV4()
 	uri := server + "/control/" + id.String() + "/" + host + "/ws"
 
 	// Instantiate a new Hub
-	hub, err := cmdchat.New(uri, keyPath, false)
+	hub, err := cmdchat.New(uri, keyPath, authHeader, false)
 	if err != nil {
 		log.Fatalf("Failed to establish WebSocket connection: %s", err)
 	}
