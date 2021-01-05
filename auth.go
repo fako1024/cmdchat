@@ -69,9 +69,11 @@ func PrepareClientCertificateAuth(certFile, keyFile, caFile string) (*tls.Config
 	}
 
 	tlsConfig := &tls.Config{
-		CurvePreferences: []tls.CurveID{tls.CurveP521},
-		Certificates:     []tls.Certificate{clientKeyCert},
-		RootCAs:          caCertPool,
+		MinVersion:               tls.VersionTLS12,
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384},
+		PreferServerCipherSuites: true,
+		Certificates:             []tls.Certificate{clientKeyCert},
+		RootCAs:                  caCertPool,
 	}
 	tlsConfig.BuildNameToCertificate()
 
