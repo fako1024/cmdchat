@@ -15,7 +15,7 @@ func main() {
 	// Create logger
 	log := logrus.StandardLogger()
 
-	// Define echo + melody frameworks
+	// Define echo + melody frameworks and set additional middleware
 	e := echo.New()
 	e.Use(CORS())
 	e.Use(middleware.Logger())
@@ -25,7 +25,7 @@ func main() {
 	// Ensure a sufficient message size even for large command output
 	m.Config.MaxMessageSize = defaultMaxMessageSize
 
-	// Prepare session store
+	// Prepare controller session store
 	sessions := make(map[string]string)
 
 	// Define handler for clients
