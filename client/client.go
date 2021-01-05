@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"os/exec"
@@ -19,14 +20,24 @@ func main() {
 
 	// Fetch flags
 	var (
-		server  string
-		host    string
-		keyPath string
-		debug   bool
+		server string
+		host   string
+
+		secretFile string
+		certFile   string
+		keyFile    string
+		caFile     string
+
+		debug bool
 	)
 	flag.StringVar(&server, "server", "ws://127.0.0.1:5000", "Server to connect to")
 	flag.StringVar(&host, "host", "", "Host to send commands to")
-	flag.StringVar(&keyPath, "key", "", "Path to key file used for AEAD encryption / authentication")
+
+	flag.StringVar(&secretFile, "secret", "", "Path to key file used for E2E AEAD encryption / authentication")
+	flag.StringVar(&certFile, "cert", "", "Path to certificate file used for client-server authentication")
+	flag.StringVar(&keyFile, "key", "", "Path to key file used for client-server authentication")
+	flag.StringVar(&caFile, "ca", "", "Path to CA certificate file used for client-server authentication")
+
 	flag.BoolVar(&debug, "debug", false, "Debug mode (more verbose logging)")
 	flag.Parse()
 
@@ -34,8 +45,13 @@ func main() {
 		log.Level = logrus.DebugLevel
 	}
 
+	tlsConfig, err := cmdchat.PrepareClientCertificateAuth(certFile, keyFile, caFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Continuously attempt to (re-)connect
-	if err := connectAndListen(server, host, keyPath, log, 0); err != nil {
+	if err := connectAndListen(server, host, secretFile, tlsConfig, log, 0); err != nil {
 		log.Fatal(err)
 	}
 
@@ -43,19 +59,19 @@ func main() {
 	nConns := 1
 	for {
 		time.Sleep(time.Second)
-		if err := connectAndListen(server, host, keyPath, log, nConns); err != nil {
+		if err := connectAndListen(server, host, secretFile, tlsConfig, log, nConns); err != nil {
 			log.Error(err)
 		}
 		nConns++
 	}
 }
 
-func connectAndListen(server, host, keyPath string, log *logrus.Logger, nConns int) error {
+func connectAndListen(server, host, keyPath string, tlsConfig *tls.Config, log *logrus.Logger, nConns int) error {
 
 	uri := server + "/client/" + host + "/ws"
 
 	// Instantiate a new Hub
-	hub, err := cmdchat.New(uri, keyPath, "", true)
+	hub, err := cmdchat.New(uri, keyPath, tlsConfig, true)
 	if err != nil {
 		return fmt.Errorf("failed to establish WebSocket connection: %s", err)
 	}
