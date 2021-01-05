@@ -20,16 +20,25 @@ func main() {
 
 	// Fetch flags
 	var (
-		user    string
-		server  string
-		host    string
-		keyPath string
-		debug   bool
+		// user       string
+		server     string
+		host       string
+		secretFile string
+		certFile   string
+		keyFile    string
+		caFile     string
+
+		debug bool
 	)
-	flag.StringVar(&user, "user", "", "User (controller) for connection to server (Basic Auth)")
+	// flag.StringVar(&user, "user", "", "User (controller) for connection to server (Basic Auth)")
 	flag.StringVar(&server, "server", "ws://127.0.0.1:5000", "Server to connect to")
 	flag.StringVar(&host, "host", "", "Host to send commands to")
-	flag.StringVar(&keyPath, "key", "", "Path to key file used for AEAD encryption / authentication")
+
+	flag.StringVar(&secretFile, "secret", "", "Path to key file used for E2E AEAD encryption / authentication")
+	flag.StringVar(&certFile, "cert", "", "Path to certificate file used for client-server authentication")
+	flag.StringVar(&keyFile, "key", "", "Path to key file used for client-server authentication")
+	flag.StringVar(&caFile, "ca", "", "Path to CA certificate file used for client-server authentication")
+
 	flag.BoolVar(&debug, "debug", false, "Debug mode (more verbose logging)")
 	flag.Parse()
 
@@ -37,17 +46,22 @@ func main() {
 		log.Level = logrus.DebugLevel
 	}
 
-	// Check for authentication password (if a user was provided) and generate authentication header
-	authHeader, err := prepareAuthHeader(user)
+	tlsConfig, err := cmdchat.PrepareClientCertificateAuth(certFile, keyFile, caFile)
 	if err != nil {
-		log.Fatalf("Failed to read user password: %s", err)
+		log.Fatal(err)
 	}
+
+	// Check for authentication password (if a user was provided) and generate authentication header
+	// authHeader, err := prepareAuthHeader(user)
+	// if err != nil {
+	// 	log.Fatalf("Failed to read user password: %s", err)
+	// }
 
 	id := uuid.NewV4()
 	uri := server + "/control/" + id.String() + "/" + host + "/ws"
 
 	// Instantiate a new Hub
-	hub, err := cmdchat.New(uri, keyPath, authHeader, false)
+	hub, err := cmdchat.New(uri, secretFile, tlsConfig, false)
 	if err != nil {
 		log.Fatalf("Failed to establish WebSocket connection: %s", err)
 	}
