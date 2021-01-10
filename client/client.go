@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/fako1024/cmdchat"
@@ -111,28 +115,73 @@ func runShellCmd(command string) (string, error) {
 		return "", nil
 	}
 
+	var (
+		outStringBuf bytes.Buffer
+		outBuf       io.Writer = &outStringBuf
+	)
+
+	// Check if the command requests a redirect of STDOUT / STDERR to file
+	command, outFilePath, err := splitByRedirect(command)
+	if err != nil {
+		return "", err
+	}
+	if outFilePath != "" {
+		outFile, err := os.OpenFile(outFilePath, os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			return "", err
+		}
+		defer outFile.Close()
+		outBuf = bufio.NewWriter(outFile)
+	}
+
 	// Parse command line into command + arguments
 	fields, err := shlex.Split(command)
 	if err != nil || len(fields) == 0 {
 		return "", fmt.Errorf("failed to parse command (%s): %s", command, err)
 	}
 
-	// TODO: Need some magic here to interpret ">" in order to pipe output to a file on the client
-	// See e.g. https://stackoverflow.com/questions/40090351/echo-command-in-golang
-	var cmd *exec.Cmd
+	// Execute command
+	err = generateCommand(fields, outBuf).Run()
+
+	return outStringBuf.String(), err
+}
+
+func splitByRedirect(command string) (string, string, error) {
+
+	split := strings.Split(command, ">")
+
+	if len(split) == 1 {
+		return command, "", nil
+	}
+
+	if len(split) == 2 {
+
+		outFields, err := shlex.Split(split[1])
+		if err != nil {
+			return "", "", fmt.Errorf("failed to parse output file path: %s", err)
+		}
+		if len(outFields) != 1 {
+			return "", "", fmt.Errorf("invalid syntax: %s", command)
+		}
+
+		return split[0], outFields[0], nil
+	}
+
+	return "", "", fmt.Errorf("invalid syntax: %s", command)
+}
+
+func generateCommand(fields []string, outBuf io.Writer) (cmd *exec.Cmd) {
+
+	// Check if any arguments were provided
 	if len(fields) == 1 {
 		cmd = exec.Command(fields[0])
 	} else {
 		cmd = exec.Command(fields[0], fields[1:]...)
 	}
 
-	// Attacg STDOUT + STDERR to output buffer
-	var outBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &outBuf
+	// Attach STDOUT + STDERR to output buffer
+	cmd.Stdout = outBuf
+	cmd.Stderr = outBuf
 
-	// Execute command
-	err = cmd.Run()
-
-	return outBuf.String(), err
+	return
 }
