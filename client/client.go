@@ -79,7 +79,11 @@ func connectAndListen(server, host, keyPath string, tlsConfig *tls.Config, log *
 	if err != nil {
 		return fmt.Errorf("failed to establish WebSocket connection: %s", err)
 	}
-	defer hub.Close()
+	defer func() {
+		if err := hub.Close(); err != nil {
+			log.Errorf("Failed to close hub: %s", err)
+		}
+	}()
 	log.Infof("Connected client to websocket at %s", uri)
 
 	// In case the connection was re-restablished, notify potential controllers
@@ -98,7 +102,7 @@ func connectAndListen(server, host, keyPath string, tlsConfig *tls.Config, log *
 		// Parse fields from command and run
 		resp, err := runShellCmd(msg)
 		if err != nil {
-			log.Errorf("error executing shell command (%s): %s", err, resp)
+			log.Errorf("Error executing shell command (%s): %s", err, resp)
 			hub.WriteChan <- err.Error() + " " + resp
 			continue
 		}
@@ -173,6 +177,7 @@ func splitByRedirect(command string) (string, string, error) {
 func generateCommand(fields []string, outBuf io.Writer) (cmd *exec.Cmd) {
 
 	// Check if any arguments were provided
+	/* #nosec G204 */
 	if len(fields) == 1 {
 		cmd = exec.Command(fields[0])
 	} else {

@@ -2,6 +2,7 @@ package cmdchat
 
 import (
 	"crypto/tls"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -146,26 +147,9 @@ func (h *Hub) Write() {
 				return
 			}
 
-			encodedMessage, err := h.encodeMessage(message)
-			if err != nil {
-				log.Errorf("Error encoding message: %s", err)
-				close(h.WriteChan)
-				return
-			}
-
-			w, err := h.ws.NextWriter(websocket.TextMessage)
-			if err != nil {
-				log.Errorf("Error obtaining WebSocket writer: %s", err)
-				close(h.WriteChan)
-				return
-			}
-			if _, err = w.Write(encodedMessage); err != nil {
-				log.Errorf("Error writing to WebSocket: %s", err)
-				close(h.WriteChan)
-				return
-			}
-			if err := w.Close(); err != nil {
-				log.Errorf("Error closing WebSocket writer: %s", err)
+			// Encode and write the message
+			if err := h.encodeAndWriteMessage(message); err != nil {
+				log.Error(err)
 				close(h.WriteChan)
 				return
 			}
@@ -185,7 +169,27 @@ func (h *Hub) Write() {
 	}
 }
 
-// EncodeMessage encodes a message
+func (h *Hub) encodeAndWriteMessage(message string) error {
+
+	encodedMessage, err := h.encodeMessage(message)
+	if err != nil {
+		return fmt.Errorf("error encoding message: %s", err)
+	}
+
+	w, err := h.ws.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return fmt.Errorf("error obtaining WebSocket writer: %s", err)
+	}
+	if _, err = w.Write(encodedMessage); err != nil {
+		return fmt.Errorf("error writing to WebSocket: %s", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("error closing WebSocket writer: %s", err)
+	}
+
+	return nil
+}
+
 func (h *Hub) encodeMessage(msg string) ([]byte, error) {
 
 	if !strings.HasSuffix(msg, "\n") {
@@ -203,7 +207,6 @@ func (h *Hub) encodeMessage(msg string) ([]byte, error) {
 	return ct, nil
 }
 
-// DecodeMessage decodes a message
 func (h *Hub) decodeMessage(data []byte) (string, error) {
 
 	pt, err := h.aead.Decrypt(data, nil)
@@ -230,7 +233,11 @@ func (h *Hub) instantiateAEAD(keyPath string, generateIfNotExists bool) error {
 	// Attempt to open key file
 	keyfile, err := os.OpenFile(keyPath, os.O_RDONLY, 0600)
 	if err == nil {
-		defer keyfile.Close()
+		defer func() {
+			if err := keyfile.Close(); err != nil {
+				h.log.Errorf("failed to close key file %s: %s", keyPath, err)
+			}
+		}()
 
 		// Read AEAD key from file and instantiate handler
 		kh, err = insecurecleartextkeyset.Read(keyset.NewBinaryReader(keyfile))
@@ -266,7 +273,11 @@ func (h *Hub) generateKey(keyPath string) (*keyset.Handle, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer keyfile.Close()
+	defer func() {
+		if err := keyfile.Close(); err != nil {
+			h.log.Errorf("failed to close key file %s: %s", keyPath, err)
+		}
+	}()
 
 	kh, err := keyset.NewHandle(DefaultAEADChipherTemplate())
 	if err != nil {

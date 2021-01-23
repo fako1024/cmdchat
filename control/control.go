@@ -63,9 +63,13 @@ func main() {
 	// Instantiate a new Hub
 	hub, err := cmdchat.New(uri, secretFile, tlsConfig, false)
 	if err != nil {
-		log.Fatalf("Failed to establish WebSocket connection: %s", err)
+		log.Fatalf("failed to establish WebSocket connection: %s", err)
 	}
-	defer hub.Close()
+	defer func() {
+		if err := hub.Close(); err != nil {
+			log.Errorf("failed to close hub: %s", err)
+		}
+	}()
 	log.Infof("Connected controller to websocket at %s", uri)
 
 	// Continuously read commands from STDIN
@@ -89,7 +93,7 @@ func main() {
 		// Retrieve and print the response
 		resp, ok := <-hub.ReadChan
 		if !ok {
-			log.Fatalf("Failed to read command response from channel")
+			log.Fatalf("failed to read command response from channel")
 		}
 
 		fmt.Printf("%s", resp)

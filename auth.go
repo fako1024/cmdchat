@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -15,57 +16,29 @@ import (
 // files (and potentially inteactively unlocks an encrypted key files)
 func PrepareClientCertificateAuth(certFile, keyFile, caFile string) (*tls.Config, error) {
 
-	// Read the client certificate file
-	clientCert, err := ioutil.ReadFile(certFile)
+	// Read the client certificate / key file
+	clientCert, clientKey, err := readclientKeyCertificate(certFile, keyFile)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read client certificate file: %s", err)
-	}
-
-	// Read the client key file
-	clientKey, err := ioutil.ReadFile(keyFile)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to read client key file: %s", err)
-	}
-
-	// Attempt to decode the key block
-	pemBlock, _ := pem.Decode(clientKey)
-	if pemBlock == nil {
-		return nil, fmt.Errorf("Failed to decode key file: %s", err)
-	}
-
-	// If the key is encrypted, ask for password and decrypt it
-	if x509.IsEncryptedPEMBlock(pemBlock) {
-
-		// Prompt for client certificate password
-		password, err := requestPassword("Enter password for encrypted client key (will not be echoed): ")
-		if err != nil {
-			return nil, fmt.Errorf("Failed to acquire client key password: %s", err)
-		}
-
-		// Decrypt / parse / marshal / encode the key
-		clientKey, err = extractPrivateKey(pemBlock, password)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to extract private key: %s", err)
-		}
+		return nil, fmt.Errorf("failed to read / decode client key / certificate file: %s", err)
 	}
 
 	// Load the key pair
 	clientKeyCert, err := tls.X509KeyPair(clientCert, clientKey)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load client key / certificate: %s", err)
+		return nil, fmt.Errorf("failed to load client key / certificate: %s", err)
 	}
 
 	// Read CA certificate from file and instantiate CA certificate pool
-	caCert, err := ioutil.ReadFile(caFile)
+	caCert, err := ioutil.ReadFile(filepath.Clean(caFile))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read CA certificate: %s", err)
+		return nil, fmt.Errorf("failed to read CA certificate: %s", err)
 	}
 	caCertPool, err := x509.SystemCertPool()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to obtain system CA pool: %s", err)
+		return nil, fmt.Errorf("failed to obtain system CA pool: %s", err)
 	}
 	if !caCertPool.AppendCertsFromPEM(caCert) {
-		return nil, fmt.Errorf("Failed to add CA certificate to pool: %s", err)
+		return nil, fmt.Errorf("failed to add CA certificate to pool: %s", err)
 	}
 
 	tlsConfig := &tls.Config{
@@ -75,7 +48,6 @@ func PrepareClientCertificateAuth(certFile, keyFile, caFile string) (*tls.Config
 		Certificates:             []tls.Certificate{clientKeyCert},
 		RootCAs:                  caCertPool,
 	}
-	tlsConfig.BuildNameToCertificate()
 
 	return tlsConfig, nil
 }
@@ -105,12 +77,51 @@ func generateBasicAuth(username, password string) string {
 func requestPassword(prompt string) ([]byte, error) {
 
 	// Prompt for password
-	fmt.Printf(prompt)
+	fmt.Print(prompt)
 
 	password, err := terminal.ReadPassword(0)
 	fmt.Println()
 
 	return password, err
+}
+
+func readclientKeyCertificate(certFile, keyFile string) ([]byte, []byte, error) {
+
+	// Read the client certificate file
+	clientCert, err := ioutil.ReadFile(filepath.Clean(certFile))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Read the client key file
+	clientKey, err := ioutil.ReadFile(filepath.Clean(keyFile))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Attempt to decode the key block
+	pemBlock, _ := pem.Decode(clientKey)
+	if pemBlock == nil {
+		return nil, nil, err
+	}
+
+	// If the key is encrypted, ask for password and decrypt it
+	if x509.IsEncryptedPEMBlock(pemBlock) {
+
+		// Prompt for client certificate password
+		password, err := requestPassword("Enter password for encrypted client key (will not be echoed): ")
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to acquire client key password: %s", err)
+		}
+
+		// Decrypt / parse / marshal / encode the key
+		clientKey, err = extractPrivateKey(pemBlock, password)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to extract private key: %s", err)
+		}
+	}
+
+	return clientCert, clientKey, nil
 }
 
 func extractPrivateKey(block *pem.Block, password []byte) ([]byte, error) {
