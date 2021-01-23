@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/syslog"
 	"os"
 	"os/exec"
 	"strings"
@@ -15,6 +16,8 @@ import (
 	"github.com/fako1024/cmdchat"
 	"github.com/google/shlex"
 	"github.com/sirupsen/logrus"
+
+	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
 )
 
 func main() {
@@ -32,7 +35,8 @@ func main() {
 		keyFile    string
 		caFile     string
 
-		debug bool
+		debug     bool
+		useSyslog bool
 	)
 	flag.StringVar(&server, "server", "ws://127.0.0.1:5000", "Server to connect to")
 	flag.StringVar(&host, "host", "", "Host to send commands to")
@@ -43,10 +47,20 @@ func main() {
 	flag.StringVar(&caFile, "ca", "", "Path to CA certificate file used for client-server authentication")
 
 	flag.BoolVar(&debug, "debug", false, "Debug mode (more verbose logging)")
+	flag.BoolVar(&useSyslog, "syslog", false, "Emit logs to syslog")
 	flag.Parse()
 
+	syslogLevel := syslog.LOG_INFO | syslog.LOG_DAEMON
 	if debug {
 		log.Level = logrus.DebugLevel
+		syslogLevel = syslog.LOG_DEBUG | syslog.LOG_DAEMON
+	}
+	if useSyslog {
+		hook, err := lSyslog.NewSyslogHook("", "", syslogLevel, "cmdchat-client")
+
+		if err == nil {
+			log.Hooks.Add(hook)
+		}
 	}
 
 	tlsConfig, err := cmdchat.PrepareClientCertificateAuth(certFile, keyFile, caFile)
