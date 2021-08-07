@@ -1,0 +1,13 @@
+#!/bin/bash
+# Simple wrapper script for use in init.d scripts (e.g. on Alpine) to support restarting
+# after a failure (not needed on OSes with systemd or similar means of monitoring service
+# health (c.f. cmdchat-client.init script for example use)
+
+# Ensure children are killed
+trap 'pkill -P $$' EXIT
+
+# Continuously restart service after failure
+while true; do
+  /opt/cmdchat-client "$@" || logger -t "cmdchat-client-wrap" "caught error from cmdchat-client: $?"
+  sleep 60
+done

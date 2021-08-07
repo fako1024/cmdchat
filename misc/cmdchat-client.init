@@ -1,0 +1,21 @@
+#!/sbin/openrc-run
+
+description="cmdchat client"
+DAEMON_OPTS="-host client-1 -syslog -secret /etc/cmdchat/client-1.key -cert /etc/cmdchat/client-1.crt -key /etc/cmdchat/client-1.key -ca /etc/cmdchat/ca.crt  -server wss://server-1.example.org"
+
+depend() {
+        need net
+        before firewall
+}
+
+start() {
+        ebegin "Starting cmdchat-client"
+        start-stop-daemon -b -m -p /run/cmdchat-client.pid --start --quiet --exec /opt/cmdchat-wrap  -- $DAEMON_OPTS1 >/dev/null 2>&1
+        eend $?
+}
+
+stop() {
+        ebegin "Stopping cmdchat-client"
+        start-stop-daemon --stop -p /run/cmdchat-client.pid --quiet --exec /opt/cmdchat-wrap >/dev/null 2>&1
+        eend $?
+}
