@@ -1,20 +1,14 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"io"
 	"log/syslog"
-	"os"
-	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/fako1024/cmdchat"
-	"github.com/google/shlex"
+	"github.com/fako1024/gotools/shell"
 	"github.com/sirupsen/logrus"
 
 	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
@@ -114,7 +108,7 @@ func connectAndListen(server, host, keyPath string, tlsConfig *tls.Config, log *
 		}
 
 		// Parse fields from command and run
-		resp, err := runShellCmd(msg)
+		resp, err := shell.Run(msg)
 		if err != nil {
 			log.Errorf("Error executing shell command (%s): %s", err, resp)
 			hub.WriteChan <- err.Error() + " " + resp
@@ -125,82 +119,4 @@ func connectAndListen(server, host, keyPath string, tlsConfig *tls.Config, log *
 		hub.WriteChan <- resp
 		log.Debugf("Sent response: %s", resp)
 	}
-}
-
-func runShellCmd(command string) (string, error) {
-
-	if command == "" {
-		return "", nil
-	}
-
-	var (
-		outStringBuf bytes.Buffer
-		outBuf       io.Writer = &outStringBuf
-	)
-
-	// Check if the command requests a redirect of STDOUT / STDERR to file
-	command, outFilePath, err := splitByRedirect(command)
-	if err != nil {
-		return "", err
-	}
-	if outFilePath != "" {
-		outFile, err := os.OpenFile(outFilePath, os.O_CREATE|os.O_WRONLY, 0600)
-		if err != nil {
-			return "", err
-		}
-		defer outFile.Close()
-		outBuf = bufio.NewWriter(outFile)
-	}
-
-	// Parse command line into command + arguments
-	fields, err := shlex.Split(command)
-	if err != nil || len(fields) == 0 {
-		return "", fmt.Errorf("failed to parse command (%s): %s", command, err)
-	}
-
-	// Execute command
-	err = generateCommand(fields, outBuf).Run()
-
-	return outStringBuf.String(), err
-}
-
-func splitByRedirect(command string) (string, string, error) {
-
-	split := strings.Split(command, ">")
-
-	if len(split) == 1 {
-		return command, "", nil
-	}
-
-	if len(split) == 2 {
-
-		outFields, err := shlex.Split(split[1])
-		if err != nil {
-			return "", "", fmt.Errorf("failed to parse output file path: %s", err)
-		}
-		if len(outFields) != 1 {
-			return "", "", fmt.Errorf("invalid syntax: %s", command)
-		}
-
-		return split[0], outFields[0], nil
-	}
-
-	return "", "", fmt.Errorf("invalid syntax: %s", command)
-}
-
-func generateCommand(fields []string, outBuf io.Writer) (cmd *exec.Cmd) {
-
-	// Check if any arguments were provided
-	/* #nosec G204 */
-	if len(fields) == 1 {
-		cmd = exec.Command(fields[0])
-	} else {
-		cmd = exec.Command(fields[0], fields[1:]...)
-	}
-
-	// Attach STDOUT + STDERR to output buffer
-	cmd.Stdout = outBuf
-	cmd.Stderr = outBuf
-
-	return
 }
