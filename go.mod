@@ -1,19 +1,31 @@
 module github.com/fako1024/cmdchat
 
-go 1.14
+go 1.22.1
 
 require (
-	github.com/fako1024/gotools/shell v0.0.0-20230905084243-56aa6a34fb53
+	github.com/fako1024/gotools/shell v0.0.0-20240419120819-e06ca9ce9e88
 	github.com/google/tink/go v1.7.0
 	github.com/gorilla/websocket v1.5.1
-	github.com/klauspost/compress v1.17.4
-	github.com/labstack/echo/v4 v4.11.3
-	github.com/labstack/gommon v0.4.1 // indirect
+	github.com/klauspost/compress v1.17.8
+	github.com/labstack/echo/v4 v4.12.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.9.3
-	golang.org/x/crypto v0.21.0
-	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/crypto v0.22.0
+	gopkg.in/olahol/melody.v1 v1.0.0-20170518105555-d52139073376
+)
+
+require (
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
+	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
+	github.com/labstack/gommon v0.4.2 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasttemplate v1.2.2 // indirect
+	golang.org/x/net v0.24.0 // indirect
+	golang.org/x/sys v0.19.0 // indirect
+	golang.org/x/term v0.19.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
-	gopkg.in/olahol/melody.v1 v1.0.0-20170518105555-d52139073376
 )
