@@ -10,7 +10,7 @@ require (
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.9.3
-	golang.org/x/crypto v0.22.0
+	golang.org/x/crypto v0.31.0
 	gopkg.in/olahol/melody.v1 v1.0.0-20170518105555-d52139073376
 )
 
@@ -23,9 +23,9 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	golang.org/x/net v0.24.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/term v0.19.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 )
