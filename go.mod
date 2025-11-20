@@ -1,6 +1,7 @@
 module github.com/fako1024/cmdchat
 
-go 1.22.1
+go 1.24.0
+
 toolchain go1.24.1
 
 require (
@@ -11,7 +12,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.9.3
-	golang.org/x/crypto v0.36.0
+	golang.org/x/crypto v0.45.0
 	gopkg.in/olahol/melody.v1 v1.0.0-20170518105555-d52139073376
 )
 
@@ -22,10 +23,10 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/term v0.30.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/term v0.37.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
 	google.golang.org/protobuf v1.36.0 // indirect
 )
