@@ -6,7 +6,7 @@ require (
 	github.com/fako1024/gotools/shell v0.0.0-20240726111648-469fe0cf3902
 	github.com/google/tink/go v1.7.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/klauspost/compress v1.17.11
+	github.com/klauspost/compress v1.18.7
 	github.com/labstack/echo/v4 v4.16.1
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.9.3
